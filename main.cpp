@@ -1,10 +1,11 @@
-#include <SFML/Window.hpp>
-#include <SFML/Graphics.hpp>
+#include <SDL2/SDL.h>
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <chrono>
+#include <thread>
 #include <entt/entt.hpp>
 //Will separate between files later if needed
 
@@ -12,87 +13,103 @@ struct Position {
   float x, y, z;
 };
 struct Size {
-  float size;
+  int size;
 };
 
-sf::Color rgba(int r, int g, int b, int a) {
-  return sf::Color(r, g, b, a);
+/* It's gonna be a */ long long time() {
+  auto now = std::chrono::system_clock::now();
+  auto dst = now.time_since_epoch();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(dst).count();
 }
-sf::Vector2f xy(float x, float y) {
-  return sf::Vector2f(x, y);
-}
-
+  
 float rand01() {
   return (float) (rand() % 65536) / 65536;
 }
 int randn(int n) {
   return (int) (rand01() * n);
 }
+int randint(int a, int b) {
+  return a + randn(b - a);
+}
 
-void handle(sf::RenderWindow* window, bool* pressed, sf::Vector2i* mousepos, float* camx, float* camy) {
-  sf::Event event;
-  while (window->pollEvent(event)) {
+void handle(bool* running, bool* pressed, int* mousepos, int* cam) {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
     switch (event.type) {
-      case sf::Event::EventType::Closed:
-        window->close();
+      case SDL_QUIT:
+        *running = false;
         break;
-      default:
+      case SDL_MOUSEBUTTONDOWN:
+        *pressed = true;
         break;
-      }
+      case SDL_MOUSEBUTTONUP:
+        *pressed = false;
+        break;
+      case SDL_MOUSEMOTION:
+        if (*pressed) {
+          cam[0] += mousepos[0] - event.button.x;
+          cam[1] += mousepos[1] - event.button.y;
+        }
+        mousepos[0] = event.button.x;
+        mousepos[1] = event.button.y;
+        break;
     }
-  if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-    sf::Vector2i newmouse = sf::Mouse::getPosition(*window);
-    if (*pressed) {
-      *camx += mousepos->x - newmouse.x;
-      *camy += mousepos->y - newmouse.y;
-    }
-    *mousepos = newmouse;
-    *pressed = true;
-  } else {
-    *pressed = false;
   }
 }
 
-void render(sf::RenderWindow* window, entt::registry* particles, float camx, float camy) {
-  window->clear(rgba(0, 0, 0, 255));
+void render(SDL_Renderer* renderer, int* cam, entt::registry* particles) {
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
   for (auto particle : particles->view<Position, Size>()) {
     auto& point = particles->get<Position>(particle);
     auto& size = particles->get<Size>(particle);
     float x = point.x, y = point.y;
-    x = (x - camx - 500) / (point.z / 500) + camx + 500;
-    y = (y - camy - 500) / (point.z / 500) + camy + 500;
-    sf::RectangleShape visual(xy(size.size, size.size));
-    visual.setFillColor(rgba(255, 255, 255, 255));
-    visual.setPosition(xy(x - size.size / 2, y - size.size / 2));
-    window->draw(visual);
+    x = (x - cam[0] - 500) / (point.z / 500) + cam[0] + 500;
+    y = (y - cam[1] - 500) / (point.z / 500) + cam[1] + 500;
+    SDL_Rect star = {(int) x, (int) y, size.size, size.size};
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderFillRect(renderer, &star);
   }
-  window->display();
+  SDL_RenderPresent(renderer);
 }
   
 
 void stars(entt::registry* particles) {
-  for (int i = 0; i < 10000; i++) {
+  for (int i = 0; i < pow(2, 12); i++) {
     auto star = particles->create();
     particles->emplace<Position>(star, rand01() * 2000, rand01() * 2000, rand01() * 200);
-    particles->emplace<Size>(star, rand01() * 4 + 1);
+    particles->emplace<Size>(star, randint(1, 5));
   }
 }
 
 int main() {
-  sf::RenderWindow window(sf::VideoMode(1000, 1000), "Trails", sf::Style::Titlebar | sf::Style::Close);
-  window.setFramerateLimit(60);
-  srand(time(0));
+  SDL_Init(SDL_INIT_VIDEO);
+  SDL_Window* window = SDL_CreateWindow("Trails", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1000, 1000, 0);
+  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   
-  float camx = 500, camy = 500;
+  bool running = true;
   bool pressed = false;
-  sf::Vector2i mousepos;
+  int cam[2] = {500, 500};
+  int mousepos[2];
   entt::registry particles;
+  int frame = 0;
+  srand(time(0));
   stars(&particles);
  
-  while (window.isOpen()) {
-    handle(&window, &pressed, &mousepos, &camx, &camy);
-    render(&window, &particles, camx, camy);
+  while (running) {
+    long long start = time();
+    handle(&running, &pressed, mousepos, cam);
+    render(renderer, cam, &particles);
+    int timepassed = time() - start;
+    if (frame % 60 == 0) {
+      std::cout << "FPS: " << (1000 / timepassed) << std::endl;
+    }
+    //No need to sleep; nothing is computing per tick yet
+    //std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, (int) (1000.f / 60 - timepassed))));
+    frame++;
   }
+  SDL_DestroyRenderer(renderer);
+  SDL_DestroyWindow(window);
+  SDL_Quit();
   return 0;
 }
-
