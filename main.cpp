@@ -60,14 +60,19 @@ void handle(bool* running, bool* pressed, int* mousepos, int* cam) {
 void render(SDL_Renderer* renderer, int* cam, entt::registry* particles) {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer);
-  for (auto particle : particles->view<Position, Size>()) {
-    auto& point = particles->get<Position>(particle);
-    auto& size = particles->get<Size>(particle);
+  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+  auto view = particles->view<Position, Size>();
+  auto& size_s = particles->storage<Size>();
+  auto& point_s = particles->storage<Position>();
+
+  for (auto particle : view) {
+    auto& point = point_s.get(particle);
+    auto& size = size_s.get(particle);
     float x = point.x, y = point.y;
     x = (x - cam[0] - 500) / (point.z / 500) + cam[0] + 500;
     y = (y - cam[1] - 500) / (point.z / 500) + cam[1] + 500;
     SDL_Rect star = {(int) x, (int) y, size.size, size.size};
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderFillRect(renderer, &star);
   }
   SDL_RenderPresent(renderer);
@@ -75,7 +80,7 @@ void render(SDL_Renderer* renderer, int* cam, entt::registry* particles) {
   
 
 void stars(entt::registry* particles) {
-  for (int i = 0; i < pow(2, 12); i++) {
+  for (int i = 0; i < pow(2, 14); i++) {
     auto star = particles->create();
     particles->emplace<Position>(star, rand01() * 2000, rand01() * 2000, rand01() * 200);
     particles->emplace<Size>(star, randint(1, 5));
