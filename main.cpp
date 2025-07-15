@@ -9,6 +9,15 @@
 #include <entt/entt.hpp>
 //Will separate between files later if needed
 
+SDL_Window* window;
+SDL_Renderer* renderer;
+bool running;
+bool pressed;
+int cam[2];
+int mousepos[2];
+entt::registry particles;
+int frame;
+
 struct Position {
   float x, y, z;
 };
@@ -32,21 +41,21 @@ int randint(int a, int b) {
   return a + randn(b - a);
 }
 
-void handle(bool* running, bool* pressed, int* mousepos, int* cam) {
+void handle() {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
       case SDL_QUIT:
-        *running = false;
+        running = false;
         break;
       case SDL_MOUSEBUTTONDOWN:
-        *pressed = true;
+        pressed = true;
         break;
       case SDL_MOUSEBUTTONUP:
-        *pressed = false;
+        pressed = false;
         break;
       case SDL_MOUSEMOTION:
-        if (*pressed) {
+        if (pressed) {
           cam[0] += mousepos[0] - event.button.x;
           cam[1] += mousepos[1] - event.button.y;
         }
@@ -57,14 +66,14 @@ void handle(bool* running, bool* pressed, int* mousepos, int* cam) {
   }
 }
 
-void render(SDL_Renderer* renderer, int* cam, entt::registry* particles) {
+void render() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer);
   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
-  auto view = particles->view<Position, Size>();
-  auto& size_s = particles->storage<Size>();
-  auto& point_s = particles->storage<Position>();
+  auto view = particles.view<Position, Size>();
+  auto& size_s = particles.storage<Size>();
+  auto& point_s = particles.storage<Position>();
 
   for (auto particle : view) {
     auto& point = point_s.get(particle);
@@ -79,42 +88,53 @@ void render(SDL_Renderer* renderer, int* cam, entt::registry* particles) {
 }
   
 
-void stars(entt::registry* particles) {
+void stars() {
   for (int i = 0; i < pow(2, 14); i++) {
-    auto star = particles->create();
-    particles->emplace<Position>(star, rand01() * 2000, rand01() * 2000, rand01() * 200);
-    particles->emplace<Size>(star, randint(1, 5));
+    auto star = particles.create();
+    particles.emplace<Position>(star, rand01() * 2000, rand01() * 2000, rand01() * 200);
+    particles.emplace<Size>(star, randint(1, 5));
   }
 }
 
-int main() {
+void init() {
   SDL_Init(SDL_INIT_VIDEO);
-  SDL_Window* window = SDL_CreateWindow("Trails", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1000, 1000, 0);
-  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-  
-  bool running = true;
-  bool pressed = false;
-  int cam[2] = {500, 500};
-  int mousepos[2];
-  entt::registry particles;
-  int frame = 0;
+  window = SDL_CreateWindow("Trails", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1000, 1000, 0);
+  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  running = true;
+  pressed = false;
+  cam[0] = 500; cam[1] = 500;
+  frame = 0;
   srand(time(0));
-  stars(&particles);
- 
-  while (running) {
-    long long start = time();
-    handle(&running, &pressed, mousepos, cam);
-    render(renderer, cam, &particles);
-    int timepassed = time() - start;
-    if (frame % 60 == 0) {
-      std::cout << "FPS: " << (1000 / timepassed) << std::endl;
-    }
-    //No need to sleep; nothing is computing per tick yet
-    //std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, (int) (1000.f / 60 - timepassed))));
-    frame++;
+}
+
+void loop() {
+  long long start = time();
+  handle();
+  render();
+  int timepassed = time() - start;
+  if (frame % 60 == 0) {
+    std::cout << "FPS: " << (1000 / timepassed) << std::endl;
   }
+  
+  //No need to sleep; nothing is computing per tick yet
+  //std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, (int) (1000.f / 60 - timepassed))));
+  frame++;
+}
+
+void close() {
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
+}
+
+int main() {
+  init();
+  stars();
+ 
+  while (running) {
+    loop();
+  }
+
+  close();
   return 0;
 }
