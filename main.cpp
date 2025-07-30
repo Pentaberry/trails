@@ -270,8 +270,8 @@ void render() {
   ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
   ImGui::Begin("Emitter Controls");
   ImGui::SliderInt("Max Emitters", &maxemits, 1, 100);
-  ImGui::SliderFloat("Meta-Deviation", &mdevt, 0.f, 1.f);
-  ImGui::SliderFloat("Deviation", &devt, 0.f, 1.f);
+  ImGui::SliderFloat("Meta-Deviation", &mdevt, 0.f, 0.5f);
+  ImGui::SliderFloat("Deviation", &devt, 0.f, 0.5f);
   ImGui::SliderInt("Lifespan", &lifet, 30, 120);
   ImGui::SliderInt("Flame", &flamet, 0, 50);
   ImGui::SliderFloat("Speed", &speedt, 0.f, 2.f);
@@ -286,7 +286,7 @@ void render() {
   ImGui::SetNextWindowSize(ImVec2(300, 800), ImGuiCond_Once);
   ImGui::SetNextWindowPos(ImVec2(700, 0), ImGuiCond_Once);
   ImGui::Begin("Particle Controls");
-  ImGui::SliderFloat("Deviation", &devp, 0.f, 1.f);
+  ImGui::SliderFloat("Deviation", &devp, 0.f, 0.5f);
   ImGui::SliderInt("Lifespan", &lifep, 30, 120);
   ImGui::SliderInt("Size", &sizep, 1, 10);
   ImGui::SliderFloat("Speed", &speedp, 0.f, 2.f);
@@ -335,8 +335,8 @@ void init() {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   maxemits = 3;
-  mdevt = 1;
-  devt = 0.125;
+  mdevt = 0.25;
+  devt = 0.25;
   lifet = 60;
   speedt = 16;
   accxt = 0;
@@ -347,7 +347,7 @@ void init() {
   jrkzt = 0;
   flamet = 10;
 
-  devp = 0.125;
+  devp = 0.25;
   lifep = 120;
   sizep = 6;
   srgbap[0] = 0; srgbap[1] = 0; srgbap[2] = 1; srgbap[3] = 1; //blue
